@@ -105,12 +105,12 @@ exports.getCreateRoomLink = async (req, res, next) => {
 
     http(meetingCreateUrl, httpRequestParamData, httpRequestConfig)
       .then((result) => {
-        console.log(result);
         return res
           .status(SuccessfulPostResponseHttpStatusCode)
           .json({ meetingCreateUrl: result });
       })
       .catch((err) => {
+        console.log(err);
         const error = new Error(err.message);
         error.httpStatusCode = error.httpStatusCode
           ? error.httpStatusCode

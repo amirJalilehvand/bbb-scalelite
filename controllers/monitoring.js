@@ -666,42 +666,39 @@ const loadBalanace = async (err, serverId) => {
 };
 
 exports.getMeetingsRunningParticipantsCount = async (req, res, next) => {
+  const scaleliteType = req.body.scaleliteType;
   const userMeetings = req.body.userMeetings;
   let count = 0;
 
   try {
+    const scalelite = await Scalelite.findOne({
+      type: scaleliteType,
+      isRemoved: { $ne: true },
+    })
+      .populate("server")
+      .exec();
+
+    // if (!server) {
+    //   console.log(
+    //     "eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee"
+    //   );
+    //   const error = new Error(ServerNotFoundErrorMsg);
+    //   error.httpStatusCode = InternalServerErrorErrorHttpStatusCode;
+    //   error.customCode = InternalServerErrorErrorCustomCode;
+    //   return next(error);
+    // }
+    const api = bbb.api(scalelite.server.baseUrl, scalelite.server.secretKey);
+    let http = bbb.http;
+
     for (let item of userMeetings) {
-      const server = await Server.findOne({
-        serverId: item.serverId,
-        setting: true,
-        autoSet: true,
-        isRemoved: false,
-      });
-
-      if (!server) {
-        continue;
-      }
-
-      const api = bbb.api(server.baseUrl, server.secretKey);
-
-      let http = bbb.http;
       let meetingInfo = await api.monitoring.getMeetingInfo(item.meetingId);
 
       let result;
 
-      try {
-        result = await http(
-          meetingInfo,
-          httpRequestParamData,
-          httpRequestConfig
-        );
+      result = await http(meetingInfo, httpRequestParamData, httpRequestConfig);
 
-        if (result.returncode === "SUCCESS") {
-          count += result.participantCount;
-        }
-      } catch (err) {
-        console.log("PcOOOOOOOOOOOOOOOOOOOOOOOOOunt");
-        console.log(err);
+      if (result.returncode === "SUCCESS") {
+        count += result.participantCount;
       }
     }
 
