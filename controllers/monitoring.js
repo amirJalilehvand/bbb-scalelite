@@ -174,6 +174,7 @@ exports.getMeetingsRunning = async (req, res, next) => {
   const schoolId = req.body.schoolId;
   const scaleliteType = req.body.scaleliteType;
   let onlineMeetings = [];
+  let allMeetings = [];
 
   try {
     const scalelite = await Scalelite.findOne({
@@ -205,23 +206,21 @@ exports.getMeetingsRunning = async (req, res, next) => {
     );
 
     if (result) {
-      onlineMeetings = result.meetings.length ? result.meetings : [];
-      console.log(onlineMeetings);
-      if (schoolId) {
-        onlineMeetings = onlineMeetings.filter(
-          (item) => item.metadata.schoolid === schoolId
-        );
-      }
-
+      allMeetings = result.meetings.length ? result.meetings : [];
       if (userMeetings) {
         for (let item of userMeetings) {
           const meetingIndex = result.meetings.findIndex(
             (element) => element.meetingID === item
           );
+
           if (meetingIndex > -1) {
             onlineMeetings.push(result.meetings[meetingIndex]);
           }
         }
+      } else if (schoolId) {
+        onlineMeetings = allMeetings.filter(
+          (item) => item.metadata.schoolid === schoolId
+        );
       }
     }
 
@@ -239,13 +238,12 @@ exports.getMeetingsRunning = async (req, res, next) => {
 
 exports.getAllMeetingsRunning = async (req, res, next) => {
   let allMeetings = [];
-  let counter = 0;
   let activeServers = [];
 
   try {
     const servers = await Server.find({
       setting: true,
-      autoSet: true,
+      //autoSet: true,
       serverType: { $ne: "scalelite" },
       isRemoved: { $ne: true },
     });
@@ -260,39 +258,45 @@ exports.getAllMeetingsRunning = async (req, res, next) => {
       return next(error);
     }
 
-    servers.forEach(async (server) => {
-      const api = bbb.api(server.baseUrl, server.secretKey);
+    for (let server of servers) {
+      try {
+        const api = bbb.api(server.baseUrl, server.secretKey);
 
-      let http = bbb.http;
+        let http = bbb.http;
 
-      let meetingsInfo = await api.monitoring.getMeetings();
+        let meetingsInfo = await api.monitoring.getMeetings();
 
-      const result = await http(
-        meetingsInfo,
-        httpRequestParamData,
-        httpRequestConfig
-      );
+        const result = await http(
+          meetingsInfo,
+          httpRequestParamData,
+          httpRequestConfig
+        );
 
-      let meetings = [];
-      if (result) {
-        meetings = result.meetings ? [...result.meetings] : [];
-      }
+        let meetings = [];
+        if (result) {
+          server.autoSet = true;
+          await server.save();
+          meetings = result.meetings ? [...result.meetings] : [];
+        }
 
-      activeServers.push({
-        serverId: server.serverId,
-        meetings,
-      });
-
-      if (meetings.length > 0) {
-        allMeetings.push(...meetings);
-      }
-      counter++;
-      if (counter === servers.length) {
-        return res.status(SuccessfulPostResponseHttpStatusCode).json({
-          onlineMeetings: allMeetings,
-          activeServers,
+        activeServers.push({
+          serverId: server.serverId,
+          meetings,
         });
+
+        if (meetings.length > 0) {
+          allMeetings.push(...meetings);
+        }
+      } catch (err) {
+        server.autoSet = false;
+        await server.save();
+        continue;
       }
+    }
+
+    return res.status(SuccessfulPostResponseHttpStatusCode).json({
+      onlineMeetings: allMeetings,
+      activeServers,
     });
   } catch (err) {
     const error = new Error(err.message);
@@ -527,16 +531,26 @@ exports.monitorMeetingsParticipants = async (req, res, next) => {
   };
 
   try {
-    const servers = await Server.find({
-      setting: true,
-      autoSet: true,
-      isRemoved: false,
-      serverType: { $ne: "scalelite" },
-    });
+    const scalelites = await Scalelite.find({
+      isRemoved: { $ne: true },
+    })
+      .populate("server")
+      .exec();
 
-    for (let server of servers) {
+    // if (!server) {
+    //   console.log(
+    //     "eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee"
+    //   );
+    //   const error = new Error(ServerNotFoundErrorMsg);
+    //   error.httpStatusCode = InternalServerErrorErrorHttpStatusCode;
+    //   error.customCode = InternalServerErrorErrorCustomCode;
+    //   return next(error);
+    // }
+
+
+    for (let scalelite of scalelites) {
       try {
-        const api = bbb.api(server.baseUrl, server.secretKey);
+        const api = bbb.api(scalelite.server.baseUrl, scalelite.server.secretKey);
 
         let http = bbb.http;
 
