@@ -203,6 +203,15 @@ exports.monitoringServerValidator = () => {
   ];
 };
 
+exports.serverIdValidator = () => {
+  return [
+    body("serverId")
+      .trim()
+      .notEmpty()
+      .withMessage(MeetingTaskServerIdValidationErrorMsg),
+  ];
+};
+
 exports.recordIdValidator = () => {
   return [
     body("recordId")

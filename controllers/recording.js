@@ -46,29 +46,24 @@ exports.getRecordings = async (req, res, next) => {
 };
 
 exports.publishRecordings = async (req, res, next) => {
-  const scaleliteType = req.body.scaleliteType;
+  const serverId = req.body.serverId;
   const recordId = req.body.recordId;
   const publish = req.body.publish;
 
   try {
-    const scalelite = await Scalelite.findOne({
-      type: scaleliteType,
+    const server = await Server.findOne({
+      serverId: serverId,
+      setting: true,
+      autoSet: true,
       isRemoved: { $ne: true },
-    })
-      .populate("server")
-      .exec();
+    });
+    if (!server) {
+      const error = new Error(ServerNotFoundErrorMsg);
+      error.httpStatusCode = InternalServerErrorErrorHttpStatusCode;
+      return next(error);
+    }
 
-    // if (!server) {
-    //   console.log(
-    //     "eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee"
-    //   );
-    //   const error = new Error(ServerNotFoundErrorMsg);
-    //   error.httpStatusCode = InternalServerErrorErrorHttpStatusCode;
-    //   error.customCode = InternalServerErrorErrorCustomCode;
-    //   return next(error);
-    // }
-
-    const api = bbb.api(scalelite.server.baseUrl, scalelite.server.secretKey);
+    const api = bbb.api(server.baseUrl, server.secretKey);
 
     let http = bbb.http;
     let publishRecordings = await api.recording.publishRecordings(
@@ -99,28 +94,23 @@ exports.publishRecordings = async (req, res, next) => {
 };
 
 exports.deleteRecording = async (req, res, next) => {
-  const scaleliteType = req.body.scaleliteType;
+  const serverId = req.body.serverId;
   const recordId = req.body.recordId;
 
   try {
-    const scalelite = await Scalelite.findOne({
-      type: scaleliteType,
+    const server = await Server.findOne({
+      serverId: serverId,
+      setting: true,
+      autoSet: true,
       isRemoved: { $ne: true },
-    })
-      .populate("server")
-      .exec();
+    });
+    if (!server) {
+      const error = new Error(ServerNotFoundErrorMsg);
+      error.httpStatusCode = InternalServerErrorErrorHttpStatusCode;
+      return next(error);
+    }
 
-    // if (!server) {
-    //   console.log(
-    //     "eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee"
-    //   );
-    //   const error = new Error(ServerNotFoundErrorMsg);
-    //   error.httpStatusCode = InternalServerErrorErrorHttpStatusCode;
-    //   error.customCode = InternalServerErrorErrorCustomCode;
-    //   return next(error);
-    // }
-
-    const api = bbb.api(scalelite.server.baseUrl, scalelite.server.secretKey);
+    const api = bbb.api(server.baseUrl, server.secretKey);
 
     let http = bbb.http;
     let deleteRecording = await api.recording.deleteRecordings(recordId);
