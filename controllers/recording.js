@@ -203,14 +203,14 @@ exports.getRecordingsByMeetingId = async (req, res, next) => {
         const result = await http(recordings);
 
         let temp = [...result.recordings];
-        if (scalelite.type === "dedicated" && allowDownloadRecordings) {
-          for (let item of temp) {
+        for (let item of temp) {
+          item.serverId = scalelite.server.serverId;
+          if (scalelite.type === "dedicated" && allowDownloadRecordings) {
             item.downloadLink = `${
               scalelite.server.baseUrl.split("bigbluebutton")[0]
             }playback/video/${item.recordID}/video-0.m4v`;
           }
         }
-        temp.forEach((item) => {});
         finalAnswer.push(...temp);
       } catch (err) {
         console.log(err);
